@@ -1,22 +1,34 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
-local Window = Rayfield:CreateWindow({
-    Name = "Groza Hub",
-    LoadingTitle = "Groza Hub",
-    LoadingSubtitle = "by El Capo",
-    Theme = "Amethyst"
+local Window = Fluent:CreateWindow({
+    Title = "Groza Hub",
+    SubTitle = "by El Capo",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- ================= ГЛАВНАЯ =================
-local MainTab = Window:CreateTab("Главная", 4483345998)
+local Tabs = {
+    Main = Window:AddTab({ Title = "Главная", Icon = "home" }),
+    Visuals = Window:AddTab({ Title = "Visuals", Icon = "eye" }),
+    Troll = Window:AddTab({ Title = "Тролл", Icon = "swords" }),
+    Settings = Window:AddTab({ Title = "Настройки", Icon = "settings" })
+}
 
-MainTab:CreateSlider({
-    Name = "Speed Hack",
-    Range = {16, 200},
-    Increment = 1,
-    Suffix = "speed",
-    CurrentValue = 16,
-    Flag = "Walkspeed",
+local Options = Fluent.Options
+
+-- ================= ГЛАВНАЯ =================
+Tabs.Main:AddSlider("Speed", {
+    Title = "Speed Hack",
+    Description = "Скорость передвижения",
+    Default = 16,
+    Min = 16,
+    Max = 200,
+    Rounding = 1,
     Callback = function(Value)
         local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
@@ -25,13 +37,13 @@ MainTab:CreateSlider({
     end
 })
 
-MainTab:CreateSlider({
-    Name = "Jump Power",
-    Range = {50, 300},
-    Increment = 1,
-    Suffix = "jump",
-    CurrentValue = 50,
-    Flag = "JumpPower",
+Tabs.Main:AddSlider("Jump", {
+    Title = "Jump Power",
+    Description = "Сила прыжка",
+    Default = 50,
+    Min = 50,
+    Max = 300,
+    Rounding = 1,
     Callback = function(Value)
         local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
@@ -41,8 +53,6 @@ MainTab:CreateSlider({
 })
 
 -- ================= ВИЗУАЛ =================
-local VisualTab = Window:CreateTab("Visuals", 4483345998)
-
 local espEnabled = false
 
 local function getRole(plr)
@@ -130,10 +140,10 @@ local function removeESP(plr)
     if hl then hl:Destroy() end
 end
 
-VisualTab:CreateToggle({
-    Name = "Player ESP",
-    CurrentValue = false,
-    Flag = "ESP",
+Tabs.Visuals:AddToggle("ESP", {
+    Title = "Player ESP",
+    Description = "Подсветка игроков с ником и ролью",
+    Default = false,
     Callback = function(Value)
         espEnabled = Value
         if Value then
@@ -162,36 +172,37 @@ end)
 game.Players.PlayerRemoving:Connect(removeESP)
 
 -- ================= ТРОЛЛ =================
-local TrollTab = Window:CreateTab("Тролл", 4483345998)
-
 local flingEnabled = false
 local flingTarget = nil
 local selectedFlingName = ""
 local flingConnection = nil
 
-local function refreshFlingList()
-    local list = {}
-    for _, plr in pairs(game.Players:GetPlayers()) do
-        if plr ~= game.Players.LocalPlayer then
-            table.insert(list, plr.Name)
-        end
-    end
-    if _G.FlingDropdown then
-        _G.FlingDropdown:Refresh(list, true)
+local playerList = {}
+for _, plr in pairs(game.Players:GetPlayers()) do
+    if plr ~= game.Players.LocalPlayer then
+        table.insert(playerList, plr.Name)
     end
 end
 
-_G.FlingDropdown = TrollTab:CreateDropdown({
-    Name = "Выбери цель",
-    Options = {},
-    CurrentOption = "",
-    Flag = "FlingTarget",
-    Callback = function(Value) selectedFlingName = Value end
+local FlingDropdown = Tabs.Troll:AddDropdown("FlingTarget", {
+    Title = "Выбери цель",
+    Values = playerList,
+    Multi = false,
+    Default = 1,
+    Callback = function(Value)
+        selectedFlingName = Value
+    end
 })
 
-refreshFlingList()
-game.Players.PlayerAdded:Connect(function() task.wait(1) refreshFlingList() end)
-game.Players.PlayerRemoving:Connect(function() task.wait(1) refreshFlingList() end)
+game.Players.PlayerAdded:Connect(function(plr)
+    task.wait(1)
+    FlingDropdown:Add(plr.Name)
+end)
+
+game.Players.PlayerRemoving:Connect(function(plr)
+    task.wait(1)
+    FlingDropdown:Remove(plr.Name)
+end)
 
 local function startFlingLoop(targetPlr)
     if flingConnection then flingConnection:Disconnect() end
@@ -219,15 +230,15 @@ local function startFlingLoop(targetPlr)
     end)
 end
 
-TrollTab:CreateToggle({
-    Name = "Fling Selected",
-    CurrentValue = false,
-    Flag = "FlingSelected",
+Tabs.Troll:AddToggle("FlingSelected", {
+    Title = "Fling Selected",
+    Description = "Флингает выбранного игрока",
+    Default = false,
     Callback = function(Value)
         flingEnabled = Value
         if Value then
             if not selectedFlingName or selectedFlingName == "" then
-                Rayfield:Notify({Title = "Ошибка", Content = "Выбери игрока", Duration = 3})
+                Fluent:Notify({Title = "Ошибка", Content = "Выбери игрока", Duration = 3})
                 flingEnabled = false
                 return
             end
@@ -243,8 +254,9 @@ TrollTab:CreateToggle({
     end
 })
 
-TrollTab:CreateButton({
-    Name = "Fling Murderer",
+Tabs.Troll:AddButton({
+    Title = "Fling Murderer",
+    Description = "Флингает убийцу",
     Callback = function()
         for _, plr in pairs(game.Players:GetPlayers()) do
             if plr ~= game.Players.LocalPlayer and plr.Character then
@@ -267,8 +279,9 @@ TrollTab:CreateButton({
     end
 })
 
-TrollTab:CreateButton({
-    Name = "Fling Sheriff",
+Tabs.Troll:AddButton({
+    Title = "Fling Sheriff",
+    Description = "Флингает шерифа",
     Callback = function()
         for _, plr in pairs(game.Players:GetPlayers()) do
             if plr ~= game.Players.LocalPlayer and plr.Character then
@@ -291,8 +304,9 @@ TrollTab:CreateButton({
     end
 })
 
-TrollTab:CreateButton({
-    Name = "Fling All",
+Tabs.Troll:AddButton({
+    Title = "Fling All",
+    Description = "Флингает всех",
     Callback = function()
         for _, plr in pairs(game.Players:GetPlayers()) do
             if plr ~= game.Players.LocalPlayer and plr.Character then
@@ -309,10 +323,10 @@ TrollTab:CreateButton({
 local antiFlingEnabled = false
 local antiFlingLoop = nil
 
-TrollTab:CreateToggle({
-    Name = "Anti-Fling",
-    CurrentValue = false,
-    Flag = "AntiFling",
+Tabs.Troll:AddToggle("AntiFling", {
+    Title = "Anti-Fling",
+    Description = "Защита от выкидывания",
+    Default = false,
     Callback = function(Value)
         antiFlingEnabled = Value
         if Value then
@@ -343,3 +357,21 @@ TrollTab:CreateToggle({
         end
     end
 })
+
+-- ================= НАСТРОЙКИ =================
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:SetFolder("GrozaHub")
+SaveManager:SetFolder("GrozaHub/Configs")
+SaveManager:BuildConfigSection(Tabs.Settings)
+InterfaceManager:ApplyToTab(Tabs.Settings)
+
+Fluent:Notify({
+    Title = "Groza Hub",
+    Content = "Загружено!",
+    Duration = 5
+})
+
+SaveManager:LoadAutoloadConfig()
